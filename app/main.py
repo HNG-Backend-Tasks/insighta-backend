@@ -49,6 +49,17 @@ async def add_cors_header(request: Request, call_next):
     return response
 
 
+@app.middleware("http")
+async def require_api_version(request: Request, call_next):
+    if request.url.path.startswith("/api/"):
+        if request.headers.get("X-API-Version") != "1":
+            return JSONResponse(
+                status_code=400,
+                content={"status": "error", "message": "API version header required"},
+            )
+    return await call_next(request)
+
+
 app.include_router(auth_router)
 app.include_router(read_router)
 app.include_router(admin_router)
