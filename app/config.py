@@ -3,6 +3,8 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class Settings(BaseSettings):
     DATABASE_URL: str
+    SECRET_KEY: str
+    ALGORITHM: str = "HS256"
 
     # External API URLS
     GENDERIZE_BASE_URL: str = "https://api.genderize.io"

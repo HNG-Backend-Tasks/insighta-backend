@@ -10,9 +10,11 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from .database import Base
 
+
 class Role(StrEnum):
     ADMIN = "admin"
     ANALYST = "analyst"
+
 
 class Gender(StrEnum):
     MALE = "male"
@@ -44,6 +46,7 @@ class Profiles(Base):
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
 
+
 class User(Base):
     __tablename__ = "users"
 
@@ -63,8 +66,9 @@ class User(Base):
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
 
+
 class RefreshToken(Base):
-    __tablename__ = 'refresh_token'
+    __tablename__ = "refresh_token"
 
     id: Mapped[str] = mapped_column(
         default=lambda: str(uuid6.uuid7()), primary_key=True
@@ -74,11 +78,7 @@ class RefreshToken(Base):
     used_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
-    expires_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True)
-    ) 
-
-
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
 class ProfileResponse(BaseModel):

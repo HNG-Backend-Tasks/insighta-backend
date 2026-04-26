@@ -1,11 +1,13 @@
 [project]
-name = "hng-stage-1"
+name = "InsightaBackend"
 version = "0.1.0"
-description = "Backend Task for HNG Stage 1"
+description = "Insighta Backend with full features auth, rate limitiing, RBAC, natural language querying, etc."
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi[all,standard]>=0.135.3",
+    "pwdlib[argon2]>=0.3.0",
+    "pyjwt>=2.12.1",
     "sqlalchemy>=2.0.49",
     "uuid6>=2025.0.1",
 ]

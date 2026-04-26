@@ -1,5 +1,6 @@
 from app.parser import parse_query
 
+
 def test_young_males():
     result = parse_query("young males")
     assert result == {"gender": "male", "min_age": 16, "max_age": 24}
@@ -34,29 +35,36 @@ def test_male_and_female_teenagers_above_17():
 def test_empty_string():
     assert parse_query("") == {}
 
+
 def test_whitespace_only():
     assert parse_query("   ") == {}
 
+
 def test_gibberish():
     assert parse_query("foo bar baz") == {}
+
 
 def test_both_genders_no_gender_filter():
     result = parse_query("males and females from nigeria")
     assert "gender" not in result
     assert result["country_id"] == "NG"
 
+
 def test_above_without_number():
     result = parse_query("females above")
     assert "min_age" not in result
     assert result == {"gender": "female"}
 
+
 def test_multi_word_country():
     result = parse_query("adults from south africa")
     assert result["country_id"] == "ZA"
 
+
 def test_case_insensitive():
     result = parse_query("MALES FROM NIGERIA")
     assert result == {"gender": "male", "country_id": "NG"}
+
 
 def test_young_maps_to_age_range_not_age_group():
     result = parse_query("young females")
