@@ -57,3 +57,16 @@ def test_request_is_logged(client, analyst_headers, caplog):
             headers=auth(analyst_headers)
         )
     assert any("GET" in r.message and "/api/profiles" in r.message for r in caplog.records)
+
+def test_auth_endpoint_rate_limited_after_10_requests(client, analyst_headers):
+    for _ in range(10):
+        client.get(
+            "/auth/test/user",
+            headers=analyst_headers
+        )
+    
+    response = client.get(
+        "/auth/test/user",
+        headers=analyst_headers
+    )
+    assert response.status_code == 429

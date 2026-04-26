@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from collections import defaultdict
 import logging
 import time
 
@@ -14,12 +15,17 @@ from .auth.router import auth_router
 
 logger = logging.getLogger("insighta")
 
+request_counts: dict = defaultdict(list)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     yield
 
+
 app = FastAPI(lifespan=lifespan)
+
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
@@ -28,12 +34,14 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         content={"status": "error", "message": exc.detail},
     )
 
+
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     return JSONResponse(
         status_code=422,
         content={"status": "error", "message": "Invalid query parameters"},
     )
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -42,11 +50,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
 @app.middleware("http")
 async def add_cors_header(request: Request, call_next):
     response = await call_next(request)
     response.headers["Access-Control-Allow-Origin"] = "*"
     return response
+
 
 @app.middleware("http")
 async def require_api_version(request: Request, call_next):
@@ -58,6 +68,7 @@ async def require_api_version(request: Request, call_next):
             )
     return await call_next(request)
 
+
 @app.middleware("http")
 async def log_requests(request: Request, call_next):
     start = time.perf_counter()
@@ -67,6 +78,29 @@ async def log_requests(request: Request, call_next):
         f"{request.method} {request.url.path} {response.status_code} {duration:.3f}s"
     )
     return response
+
+
+@app.middleware("http")
+async def rate_limit(request: Request, call_next):
+    client_ip = request.client.host
+    path = request.url.path
+    now = time.time()
+
+    if path.startswith("/auth/"):
+        limit = 10
+    else:
+        limit = 60
+
+    key = f"{client_ip}:{path}"
+    request_counts[key] = [t for t in request_counts[key] if now - t < 60]
+
+    if len(request_counts[key]) >= limit:
+        return JSONResponse(
+            status_code=429, content={"status": "error", "message": "Too many requests"}
+        )
+
+    request_counts[key].append(now)
+    return await call_next(request)
 
 
 app.include_router(auth_router)

@@ -160,3 +160,9 @@ def admin_headers(admin_user):
 def analyst_headers(analyst_user):
     token = create_access_token(analyst_user)
     return {"Authorization": f"Bearer {token}"}
+
+@pytest.fixture(autouse=True)
+def clear_rate_limit_counts():
+    from app.main import request_counts
+    request_counts.clear()
+    yield
