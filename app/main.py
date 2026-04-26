@@ -1,4 +1,7 @@
 from contextlib import asynccontextmanager
+import logging
+import time
+
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -9,14 +12,14 @@ from .api import read_router, admin_router
 from .auth.router import auth_router
 
 
+logger = logging.getLogger("insighta")
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     Base.metadata.create_all(bind=engine)
     yield
 
-
 app = FastAPI(lifespan=lifespan)
-
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
@@ -25,14 +28,12 @@ async def http_exception_handler(request: Request, exc: HTTPException):
         content={"status": "error", "message": exc.detail},
     )
 
-
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     return JSONResponse(
         status_code=422,
         content={"status": "error", "message": "Invalid query parameters"},
     )
-
 
 app.add_middleware(
     CORSMiddleware,
@@ -41,13 +42,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 @app.middleware("http")
 async def add_cors_header(request: Request, call_next):
     response = await call_next(request)
     response.headers["Access-Control-Allow-Origin"] = "*"
     return response
-
 
 @app.middleware("http")
 async def require_api_version(request: Request, call_next):
@@ -58,6 +57,16 @@ async def require_api_version(request: Request, call_next):
                 content={"status": "error", "message": "API version header required"},
             )
     return await call_next(request)
+
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    start = time.perf_counter()
+    response = await call_next(request)
+    duration = time.perf_counter() - start
+    logger.info(
+        f"{request.method} {request.url.path} {response.status_code} {duration:.3f}s"
+    )
+    return response
 
 
 app.include_router(auth_router)

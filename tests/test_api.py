@@ -1,4 +1,6 @@
 import math
+import logging
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -47,3 +49,11 @@ def test_export_csv_has_correct_columns(client, admin_headers):
     )
     first_line = response.text.split("\n")[0]
     assert first_line == "id,name,gender,gender_probability,age,age_group,country_id,country_name,country_probability,created_at"
+
+def test_request_is_logged(client, analyst_headers, caplog):
+    with caplog.at_level(logging.INFO):
+        client.get(
+            "/api/profiles",
+            headers=auth(analyst_headers)
+        )
+    assert any("GET" in r.message and "/api/profiles" in r.message for r in caplog.records)
