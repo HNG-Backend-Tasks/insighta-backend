@@ -29,3 +29,21 @@ def test_paginated_response_includes_links_and_total_pages(client, analyst_heade
     assert body["links"]["prev"] is None
     assert body["links"]["next"] is not None
     assert body["total_pages"] == math.ceil(body["total"] / 2)
+
+def test_export_profiles_returns_csv(client, admin_headers):
+    response = client.get(
+        "/api/profiles/export?format=csv",
+        headers=auth(admin_headers)
+    )
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "text/csv; charset=utf-8"
+    assert "attachment" in response.headers["content-disposition"]
+    assert "profiles_" in response.headers["content-disposition"]
+
+def test_export_csv_has_correct_columns(client, admin_headers):
+    response = client.get(
+        "/api/profiles/export?format=csv",
+        headers=auth(admin_headers)
+    )
+    first_line = response.text.split("\n")[0]
+    assert first_line == "id,name,gender,gender_probability,age,age_group,country_id,country_name,country_probability,created_at"

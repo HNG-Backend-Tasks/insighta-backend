@@ -17,6 +17,7 @@ from .service import (
 from .auth.dependencies import get_current_user, require_admin
 from .models import ProfileResponse, ProfileListItem, AgeGroup, Gender
 from .parser import parse_query
+from .utils import utcnow
 
 router = APIRouter()
 
@@ -98,6 +99,61 @@ def search_profiles(
 
     result = get_profiles(db, page=page, limit=limit, **filters)
     return paginated_response(request, result)
+
+
+@read_router.get("/api/profiles/export")
+def export_profiles(
+    db: Annotated[Session, Depends(get_db)],
+    query: Annotated[ProfileQuery, Query()],
+):
+    import csv
+    import io
+    from fastapi.responses import StreamingResponse
+
+    result = get_profiles(db, **{**query.model_dump(), "page": 1, "limit": 100_000})
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer, lineterminator="\n")
+
+    writer.writerow(
+        [
+            "id",
+            "name",
+            "gender",
+            "gender_probability",
+            "age",
+            "age_group",
+            "country_id",
+            "country_name",
+            "country_probability",
+            "created_at",
+        ]
+    )
+
+    for p in result["data"]:
+        writer.writerow(
+            [
+                p.id,
+                p.name,
+                p.gender,
+                p.gender_probability,
+                p.age,
+                p.age_group,
+                p.country_id,
+                p.country_name,
+                p.country_probability,
+                p.created_at,
+            ]
+        )
+
+    buffer.seek(0)
+    filename = f"profiles_{utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f"attachment; filename={filename}"},
+    )
 
 
 @read_router.get("/api/profiles/{id}")
