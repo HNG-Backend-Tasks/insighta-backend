@@ -4,12 +4,15 @@ import uuid6
 
 
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import DateTime, String, Float, Integer
+from sqlalchemy import DateTime, String, Float, Integer, ForeignKey
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
 from .database import Base
 
+class Role(StrEnum):
+    ADMIN = "admin"
+    ANALYST = "analyst"
 
 class Gender(StrEnum):
     MALE = "male"
@@ -40,6 +43,42 @@ class Profiles(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
+
+class User(Base):
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(
+        default=lambda: str(uuid6.uuid7()), primary_key=True
+    )
+    github_id: Mapped[str] = mapped_column(String, unique=True)
+    username: Mapped[str] = mapped_column(String)
+    email: Mapped[str] = mapped_column(String)
+    avatar_url: Mapped[str] = mapped_column(String)
+    role: Mapped[str] = mapped_column(SQLEnum(Role), default=Role.ANALYST)
+    is_active: Mapped[bool] = mapped_column(default=True)
+    last_login_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True, default=None
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=lambda: datetime.now(UTC)
+    )
+
+class RefreshToken(Base):
+    __tablename__ = 'refresh_token'
+
+    id: Mapped[str] = mapped_column(
+        default=lambda: str(uuid6.uuid7()), primary_key=True
+    )
+    user_id: Mapped[str] = mapped_column(String, ForeignKey("users.id"))
+    token_hash: Mapped[str] = mapped_column(String)
+    used_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    expires_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True)
+    ) 
+
+
 
 
 class ProfileResponse(BaseModel):
