@@ -187,3 +187,20 @@ def test_admin_can_access_admin_endpoint(client, db):
     # restore
     user.role = Role.ANALYST
     db.commit()
+
+
+def test_unauthenticated_request_to_profiles_returns_401(client):
+    response = client.get("/api/profiles")
+    assert response.status_code == 401
+
+
+def test_analyst_cannot_create_profile(client, analyst_headers):
+    response = client.post(
+        "/api/profiles", json={"name": "Test User"}, headers=analyst_headers
+    )
+    assert response.status_code == 403
+
+
+def test_analyst_cannot_delete_profile(client, analyst_headers):
+    response = client.delete("/api/profiles/some-id", headers=analyst_headers)
+    assert response.status_code == 403

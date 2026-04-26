@@ -13,10 +13,14 @@ from .service import (
     get_profiles,
     delete_profile,
 )
+from .auth.dependencies import get_current_user, require_admin
 from .models import ProfileResponse, ProfileListItem, AgeGroup, Gender
 from .parser import parse_query
 
 router = APIRouter()
+
+read_router = APIRouter(dependencies=[Depends(get_current_user)])
+admin_router = APIRouter(dependencies=[Depends(require_admin)])
 
 
 class ProfileRequest(BaseModel):
@@ -37,7 +41,7 @@ class ProfileQuery(BaseModel):
     page: int = Query(default=1, ge=1)
 
 
-@router.post("/api/profiles", status_code=201)
+@admin_router.post("/api/profiles", status_code=201)
 async def create_profile_endpoint(
     request: ProfileRequest, response: Response, db: Annotated[Session, Depends(get_db)]
 ):
@@ -66,9 +70,10 @@ async def create_profile_endpoint(
     }
 
 
-@router.get("/api/profiles")
+@read_router.get("/api/profiles")
 def list_profiles_endpoint(
-    db: Annotated[Session, Depends(get_db)], query: Annotated[ProfileQuery, Query()]
+    db: Annotated[Session, Depends(get_db)],
+    query: Annotated[ProfileQuery, Query()],
 ):
     result = get_profiles(db, **query.model_dump())
 
@@ -81,7 +86,7 @@ def list_profiles_endpoint(
     }
 
 
-@router.get("/api/profiles/search")
+@read_router.get("/api/profiles/search")
 def search_profiles(
     db: Annotated[Session, Depends(get_db)],
     q: str = Query(..., description="Natural language query"),
@@ -107,7 +112,7 @@ def search_profiles(
     }
 
 
-@router.get("/api/profiles/{id}")
+@read_router.get("/api/profiles/{id}")
 def get_profile_endpoint(id: str, db: Annotated[Session, Depends(get_db)]):
     profile = get_profile(id, db)
 
@@ -120,7 +125,7 @@ def get_profile_endpoint(id: str, db: Annotated[Session, Depends(get_db)]):
     }
 
 
-@router.delete("/api/profiles/{id}", status_code=204)
+@admin_router.delete("/api/profiles/{id}", status_code=204)
 def delete_profile_endpoint(id: str, db: Annotated[Session, Depends(get_db)]):
     deleted = delete_profile(id, db)
 

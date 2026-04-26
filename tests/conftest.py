@@ -6,10 +6,55 @@ from datetime import datetime, UTC
 from fastapi.testclient import TestClient
 from app.main import app
 from app.database import Base, get_db
-from app.models import Profiles
+from app.models import Profiles, User, Role, RefreshToken
+from app.auth.service import create_access_token, create_refresh_token
 
 engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
 SessionLocal = sessionmaker(bind=engine)
+Base.metadata.create_all(bind=engine)
+
+
+@pytest.fixture(scope="session")
+def admin_user(db):
+    user = User(
+        github_id="admin-001",
+        username="adminuser",
+        email="admin@example.com",
+        avatar_url="https://github.com/avatar.png",
+        role=Role.ADMIN,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@pytest.fixture(scope="session")
+def analyst_user(db):
+    user = User(
+        github_id="analyst-001",
+        username="analystuser",
+        email="analyst@example.com",
+        avatar_url="https://github.com/avatar.png",
+        role=Role.ANALYST,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@pytest.fixture(scope="session")
+def admin_headers(admin_user):
+    token = create_access_token(admin_user)
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture(scope="session")
+def analyst_headers(analyst_user):
+    token = create_access_token(analyst_user)
+    return {"Authorization": f"Bearer {token}"}
+
 
 TEST_PROFILES = [
     {
@@ -106,3 +151,45 @@ def client(db):
     app.dependency_overrides[get_db] = override_get_db
     yield TestClient(app)
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(scope="session")
+def admin_user(db):
+    user = User(
+        github_id="admin-001",
+        username="adminuser",
+        email="admin@example.com",
+        avatar_url="https://github.com/avatar.png",
+        role=Role.ADMIN,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@pytest.fixture(scope="session")
+def analyst_user(db):
+    user = User(
+        github_id="analyst-001",
+        username="analystuser",
+        email="analyst@example.com",
+        avatar_url="https://github.com/avatar.png",
+        role=Role.ANALYST,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@pytest.fixture(scope="session")
+def admin_headers(admin_user):
+    token = create_access_token(admin_user)
+    return {"Authorization": f"Bearer {token}"}
+
+
+@pytest.fixture(scope="session")
+def analyst_headers(analyst_user):
+    token = create_access_token(analyst_user)
+    return {"Authorization": f"Bearer {token}"}
