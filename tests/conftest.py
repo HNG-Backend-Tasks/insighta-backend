@@ -3,7 +3,9 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 from datetime import datetime, UTC
 
-from app.database import Base
+from fastapi.testclient import TestClient
+from app.main import app
+from app.database import Base, get_db
 from app.models import Profiles
 
 engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
@@ -94,3 +96,13 @@ def db():
     yield session
     session.close()
     Base.metadata.drop_all(bind=engine)
+
+
+@pytest.fixture(scope="session")
+def client(db):
+    def override_get_db():
+        yield db
+
+    app.dependency_overrides[get_db] = override_get_db
+    yield TestClient(app)
+    app.dependency_overrides.clear()

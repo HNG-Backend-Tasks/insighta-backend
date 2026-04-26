@@ -6,6 +6,7 @@ from fastapi.responses import JSONResponse
 
 from .database import engine, Base
 from .api import router
+from .auth.router import auth_router as auth_router
 
 
 @asynccontextmanager
@@ -49,3 +50,4 @@ async def add_cors_header(request: Request, call_next):
 
 
 app.include_router(router)
+app.include_router(auth_router)

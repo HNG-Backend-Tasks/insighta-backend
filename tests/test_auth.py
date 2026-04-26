@@ -10,7 +10,7 @@ from app.auth.service import (
     rotate_refresh_token,
 )
 from app.config import settings
-from app.models import User, RefreshToken
+from app.models import User, RefreshToken, Role
 from app.auth.service import create_access_token, decode_access_token
 
 
@@ -112,3 +112,78 @@ def test_expired_refresh_token_is_rejected(db):
 
     result = rotate_refresh_token(raw_token, db)
     assert result is None
+
+
+def test_valid_token_accesses_protected_endpoint(client, db):
+    user = db.execute(select(User).limit(1)).scalar_one()
+    token = create_access_token(user)
+
+    response = client.get(
+        "/auth/test/user", headers={"Authorization": f"Bearer {token}"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["user_id"] == user.id
+
+
+def test_missing_token_returns_401(client):
+    response = client.get("/auth/test/user")
+    assert response.status_code == 401
+
+
+def test_expired_token_returns_401(client):
+    expired_token = pyjwt.encode(
+        {"sub": "some-id", "role": "analyst", "exp": datetime(2020, 1, 1, tzinfo=UTC)},
+        settings.SECRET_KEY,
+        algorithm="HS256",
+    )
+    response = client.get(
+        "/auth/test/user", headers={"Authorization": f"Bearer {expired_token}"}
+    )
+    assert response.status_code == 401
+
+
+def test_inactive_user_returns_403(client, db):
+    user = db.execute(select(User).limit(1)).scalar_one()
+    user.is_active = False
+    db.commit()
+
+    token = create_access_token(user)
+    response = client.get(
+        "/auth/test/user", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 403
+
+    # restore
+    user.is_active = True
+    db.commit()
+
+
+def test_analyst_cannot_access_admin_endpoint(client, db):
+    user = db.execute(
+        select(User).where(User.role == Role.ANALYST).limit(1)
+    ).scalar_one()
+    token = create_access_token(user)
+
+    response = client.get(
+        "/auth/test/admin", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 403
+
+
+def test_admin_can_access_admin_endpoint(client, db):
+    user = db.execute(
+        select(User).where(User.role == Role.ANALYST).limit(1)
+    ).scalar_one()
+    user.role = Role.ADMIN
+    db.commit()
+
+    token = create_access_token(user)
+    response = client.get(
+        "/auth/test/admin", headers={"Authorization": f"Bearer {token}"}
+    )
+    assert response.status_code == 200
+
+    # restore
+    user.role = Role.ANALYST
+    db.commit()
