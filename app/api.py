@@ -1,7 +1,8 @@
 from typing import Annotated, Literal
+import math
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Response, Query
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, Query
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 
@@ -72,44 +73,31 @@ async def create_profile_endpoint(
 
 @read_router.get("/api/profiles")
 def list_profiles_endpoint(
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
     query: Annotated[ProfileQuery, Query()],
 ):
     result = get_profiles(db, **query.model_dump())
-
-    return {
-        "status": "success",
-        "page": result["page"],
-        "limit": result["limit"],
-        "total": result["total"],
-        "data": [ProfileListItem.model_validate(p) for p in result["data"]],
-    }
+    return paginated_response(request, result)
 
 
 @read_router.get("/api/profiles/search")
 def search_profiles(
+    request: Request,
     db: Annotated[Session, Depends(get_db)],
     q: str = Query(..., description="Natural language query"),
     page: int = Query(default=1, ge=1),
     limit: int = Query(default=10, ge=1, le=50),
 ):
-    filters = parse_query(q)
-
     if not q.strip():
         raise HTTPException(status_code=400, detail="Invalid query parameters")
 
+    filters = parse_query(q)
     if not filters:
         raise HTTPException(status_code=422, detail="Unable to interpret query")
 
     result = get_profiles(db, page=page, limit=limit, **filters)
-
-    return {
-        "status": "success",
-        "page": result["page"],
-        "limit": result["limit"],
-        "total": result["total"],
-        "data": [ProfileListItem.model_validate(p) for p in result["data"]],
-    }
+    return paginated_response(request, result)
 
 
 @read_router.get("/api/profiles/{id}")
@@ -133,3 +121,29 @@ def delete_profile_endpoint(id: str, db: Annotated[Session, Depends(get_db)]):
         raise HTTPException(status_code=404, detail="Profile not found")
 
     return Response(status_code=204)
+
+
+def build_links(path: str, page: int, limit: int, total_pages: int) -> dict:
+    def url(p):
+        return f"{path}?page={p}&limit={limit}"
+
+    return {
+        "self": url(page),
+        "next": url(page + 1) if page < total_pages else None,
+        "prev": url(page - 1) if page > 1 else None,
+    }
+
+
+def paginated_response(request: Request, result: dict) -> dict:
+    total_pages = math.ceil(result["total"] / result["limit"])
+    return {
+        "status": "success",
+        "page": result["page"],
+        "limit": result["limit"],
+        "total": result["total"],
+        "total_pages": total_pages,
+        "links": build_links(
+            request.url.path, result["page"], result["limit"], total_pages
+        ),
+        "data": [ProfileListItem.model_validate(p) for p in result["data"]],
+    }

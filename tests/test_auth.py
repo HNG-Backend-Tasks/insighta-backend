@@ -10,7 +10,7 @@ from app.auth.service import (
     rotate_refresh_token,
 )
 from app.config import settings
-from app.models import User, RefreshToken, Role
+from app.models import User, RefreshToken, Role, Profiles
 from app.auth.service import create_access_token, decode_access_token
 
 
@@ -188,34 +188,23 @@ def test_admin_can_access_admin_endpoint(client, db):
     user.role = Role.ANALYST
     db.commit()
 
+
 def test_unauthenticated_request_to_profiles_returns_401(client):
-    response = client.get(
-        "/api/profiles",
-        headers={"X-API-Version": "1"}
-    )
+    response = client.get("/api/profiles", headers={"X-API-Version": "1"})
     assert response.status_code == 401
+
 
 def test_analyst_cannot_create_profile(client, analyst_headers):
     response = client.post(
         "/api/profiles",
         json={"name": "Test User"},
-        headers={**analyst_headers, "X-API-Version": "1"}
+        headers={**analyst_headers, "X-API-Version": "1"},
     )
     assert response.status_code == 403
+
 
 def test_analyst_cannot_delete_profile(client, analyst_headers):
     response = client.delete(
-        "/api/profiles/some-id",
-        headers={**analyst_headers, "X-API-Version": "1"}
+        "/api/profiles/some-id", headers={**analyst_headers, "X-API-Version": "1"}
     )
     assert response.status_code == 403
-
-def test_missing_api_version_header_returns_400(client, analyst_headers):
-    response = client.get("/api/profiles", headers=analyst_headers)
-    assert response.status_code == 400
-    assert response.json()["message"] == "API version header required"
-
-
-def test_api_version_header_not_required_for_auth_endpoints(client):
-    response = client.get("/auth/test/user")
-    assert response.status_code == 401

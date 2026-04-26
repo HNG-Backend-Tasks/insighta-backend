@@ -1,59 +1,17 @@
-import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 from datetime import datetime, UTC
 
+import pytest
 from fastapi.testclient import TestClient
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session, sessionmaker
+
 from app.main import app
 from app.database import Base, get_db
 from app.models import Profiles, User, Role, RefreshToken
 from app.auth.service import create_access_token, create_refresh_token
 
-engine = create_engine("sqlite:///:memory:", connect_args={"check_same_thread": False})
-SessionLocal = sessionmaker(bind=engine)
-Base.metadata.create_all(bind=engine)
-
-
-@pytest.fixture(scope="session")
-def admin_user(db):
-    user = User(
-        github_id="admin-001",
-        username="adminuser",
-        email="admin@example.com",
-        avatar_url="https://github.com/avatar.png",
-        role=Role.ADMIN,
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return user
-
-
-@pytest.fixture(scope="session")
-def analyst_user(db):
-    user = User(
-        github_id="analyst-001",
-        username="analystuser",
-        email="analyst@example.com",
-        avatar_url="https://github.com/avatar.png",
-        role=Role.ANALYST,
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return user
-
-
-@pytest.fixture(scope="session")
-def admin_headers(admin_user):
-    token = create_access_token(admin_user)
-    return {"Authorization": f"Bearer {token}"}
-
-
-@pytest.fixture(scope="session")
-def analyst_headers(analyst_user):
-    token = create_access_token(analyst_user)
-    return {"Authorization": f"Bearer {token}"}
+test_engine = create_engine("sqlite://", connect_args={"check_same_thread": False})
+TestSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=test_engine)
 
 
 TEST_PROFILES = [
@@ -132,15 +90,24 @@ TEST_PROFILES = [
 ]
 
 
+@pytest.fixture(scope="session", autouse=True)
+def create_tables():
+    Base.metadata.create_all(test_engine)
+    yield
+    Base.metadata.drop_all(test_engine)
+
+
 @pytest.fixture(scope="session")
 def db():
-    Base.metadata.create_all(bind=engine)
-    session = SessionLocal()
+    connection = test_engine.connect()
+    transaction = connection.begin()
+    session = Session(bind=connection)
     session.bulk_insert_mappings(Profiles, TEST_PROFILES)
     session.commit()
     yield session
     session.close()
-    Base.metadata.drop_all(bind=engine)
+    transaction.rollback()
+    connection.close()
 
 
 @pytest.fixture(scope="session")
