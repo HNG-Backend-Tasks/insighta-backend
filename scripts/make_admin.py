@@ -8,6 +8,7 @@ Usage:
 Example:
     uv run python scripts/make_admin.py DanielPopoola
 """
+
 import sys
 from pathlib import Path
 
@@ -15,8 +16,10 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).parent.parent))
 
 from sqlalchemy import select
-from app.database import SessionLocal, engine, Base
-from app.models import User, Role
+
+from app.database import Base, SessionLocal, engine
+from app.models import Role, User
+
 
 def make_admin(username: str) -> None:
     Base.metadata.create_all(bind=engine)
@@ -40,6 +43,7 @@ def make_admin(username: str) -> None:
 
     finally:
         db.close()
+
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:

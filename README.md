@@ -247,6 +247,15 @@ uv run pytest tests/ -v
 ```bash
 docker compose up --build
 ```
+## Admin Setup
+
+After deployment, promote a user to admin by running:
+
+```bash
+uv run python scripts/make_admin.py <github_username>
+```
+
+The user must have logged in at least once before they can be promoted.
 
 ## Project Structure
 
