@@ -120,12 +120,14 @@ def upsert_user(github_user_data: dict, db: Session) -> User:
             username=github_user_data["login"],
             email=github_user_data.get("email") or "",
             avatar_url=github_user_data.get("avatar_url") or "",
+            last_login_at=utcnow()
         )
         db.add(user)
     else:
         user.username = github_user_data["login"]
         user.email = github_user_data.get("email") or user.email
         user.avatar_url = github_user_data.get("avatar_url") or user.avatar_url
+        user.last_login_at = utcnow()
 
     db.commit()
     db.refresh(user)

@@ -101,7 +101,6 @@ async def rate_limit(request: Request, call_next):
     request_counts[key].append(now)
     return await call_next(request)
 
-
 app.include_router(auth_router)
 app.include_router(read_router)
 app.include_router(admin_router)

@@ -28,6 +28,8 @@ jobs:
           DATABASE_URL: sqlite:///./test.db
           SECRET_KEY: test-secret-key-for-ci
           ALGORITHM: HS256
-          GITHUB_CLIENT_ID: fake-client-id
-          GITHUB_CLIENT_SECRET: fake-client-secret
+          GITHUB_CLIENT_ID_WEB: fake-client-id
+          GITHUB_CLIENT_SECRET_WEB: fake-client-secret
+          GITHUB_CLIENT_ID_CLI: fake-client-id
+          GITHUB_CLIENT_SECRET_CLI: fake-client-secret
           API_BASE_URL: http://localhost:8000

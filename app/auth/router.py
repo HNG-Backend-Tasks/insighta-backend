@@ -54,6 +54,7 @@ async def github_callback(
     return {
         "access_token": create_access_token(user),
         "refresh_token": create_refresh_token(user.id, db),
+        "username": user.username,
     }
 
 
