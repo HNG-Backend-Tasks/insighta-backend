@@ -82,18 +82,21 @@ async def log_requests(request: Request, call_next):
 
 @app.middleware("http")
 async def rate_limit(request: Request, call_next):
-    client_ip = request.client.host
-    path = request.url.path
     now = time.time()
+    path = request.url.path
 
     if path.startswith("/auth/"):
+        key = f"{request.client.host}:{path}"
         limit = 10
     else:
+        # per-user for /api/* — use Bearer token or cookie as identity
+        token = request.headers.get("Authorization", "") or request.cookies.get(
+            "access_token", ""
+        )
+        key = f"{token}:{path}" if token else f"{request.client.host}:{path}"
         limit = 60
 
-    key = f"{client_ip}:{path}"
     request_counts[key] = [t for t in request_counts[key] if now - t < 60]
-
     if len(request_counts[key]) >= limit:
         return JSONResponse(
             status_code=429, content={"status": "error", "message": "Too many requests"}

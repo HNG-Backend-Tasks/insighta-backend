@@ -120,15 +120,15 @@ def test_valid_token_accesses_protected_endpoint(client, db):
     token = create_access_token(user)
 
     response = client.get(
-        "/auth/test/user", headers={"Authorization": f"Bearer {token}"}
+        "/auth/me", headers={"Authorization": f"Bearer {token}"}
     )
 
     assert response.status_code == 200
-    assert response.json()["user_id"] == user.id
+    assert response.json()["id"] == user.id
 
 
 def test_missing_token_returns_401(client):
-    response = client.get("/auth/test/user")
+    response = client.get("/auth/me")
     assert response.status_code == 401
 
 
@@ -138,9 +138,7 @@ def test_expired_token_returns_401(client):
         settings.SECRET_KEY,
         algorithm="HS256",
     )
-    response = client.get(
-        "/auth/test/user", headers={"Authorization": f"Bearer {expired_token}"}
-    )
+    response = client.get("/auth/me", headers={"Authorization": f"Bearer {expired_token}"})
     assert response.status_code == 401
 
 
@@ -150,9 +148,7 @@ def test_inactive_user_returns_403(client, db):
     db.commit()
 
     token = create_access_token(user)
-    response = client.get(
-        "/auth/test/user", headers={"Authorization": f"Bearer {token}"}
-    )
+    response = client.get("/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 403
 
     # restore
@@ -165,9 +161,10 @@ def test_analyst_cannot_access_admin_endpoint(client, db):
         select(User).where(User.role == Role.ANALYST).limit(1)
     ).scalar_one()
     token = create_access_token(user)
-
-    response = client.get(
-        "/auth/test/admin", headers={"Authorization": f"Bearer {token}"}
+    response = client.post(
+        "/api/profiles",
+        json={"name": "Test"},
+        headers={"Authorization": f"Bearer {token}", "X-API-Version": "1"},
     )
     assert response.status_code == 403
 
@@ -181,7 +178,7 @@ def test_admin_can_access_admin_endpoint(client, db):
 
     token = create_access_token(user)
     response = client.get(
-        "/auth/test/admin", headers={"Authorization": f"Bearer {token}"}
+        "/auth/me", headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 200
 

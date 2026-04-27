@@ -8,7 +8,7 @@ from ..config import settings
 from ..database import get_db
 from ..models import User
 from ..utils import utcnow
-from .dependencies import get_current_user, require_admin
+from .dependencies import get_current_user
 from .schemas import RefreshRequest
 from .service import (
     create_access_token,
@@ -21,16 +21,6 @@ from .service import (
 )
 
 auth_router = APIRouter()
-
-
-@auth_router.get("/auth/test/user")
-def test_user_endpoint(user: User = Depends(get_current_user)):
-    return {"user_id": user.id, "role": user.role}
-
-
-@auth_router.get("/auth/test/admin")
-def test_admin_endpoint(user: User = Depends(require_admin)):
-    return {"user_id": user.id, "role": user.role}
 
 
 @auth_router.get("/auth/github/callback")
@@ -68,7 +58,7 @@ def github_login():
         "redirect_uri": f"{settings.BACKEND_URL}/auth/github/callback",
     }
     query = "&".join(f"{k}={v}" for k, v in params.items())
-    return RedirectResponse(f"https://github.com/authorize?{query}")
+    return RedirectResponse(f"https://github.com/login/oauth/authorize?{query}")
 
 
 @auth_router.post("/auth/refresh")

@@ -6,6 +6,9 @@ from sqlalchemy.orm import Session
 
 from .clients import get_age, get_gender, get_nationality
 from .models import AgeGroup, Gender, Profiles
+from .parser import COUNTRY_MAP
+
+COUNTRY_ID_TO_NAME = {v: k.title() for k, v in COUNTRY_MAP.items()}
 
 
 def _classify_age(age: int) -> AgeGroup:
@@ -41,6 +44,9 @@ async def enrich_profile_data(name: str) -> dict:
         "age": age_data["age"],
         "age_group": age_class,
         "country_id": top_country["country_id"],
+        "country_name": COUNTRY_ID_TO_NAME.get(
+            top_country["country_id"], top_country["country_id"]
+        ),
         "country_probability": top_country["probability"],
     }
 

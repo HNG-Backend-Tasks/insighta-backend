@@ -18,7 +18,7 @@ def test_missing_api_version_header_returns_400(client, analyst_headers):
 
 
 def test_api_version_header_not_required_for_auth_endpoints(client):
-    response = client.get("/auth/test/user")
+    response = client.get("/auth/me")
     assert response.status_code == 401
 
 

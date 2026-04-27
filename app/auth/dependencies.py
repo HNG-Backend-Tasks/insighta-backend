@@ -25,9 +25,13 @@ def get_current_user(
     if not payload:
         raise HTTPException(status_code=401, detail="Not authenticated")
     user = db.get(User, payload["sub"])
-    if not user or not user.is_active:
+    if not user:
         raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="User not found or inactive"
+            status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated"
+        )
+    if not user.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN, detail="Account is inactive"
         )
     return user
 
