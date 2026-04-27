@@ -2,6 +2,7 @@ from datetime import timedelta
 import secrets
 import hashlib
 
+import httpx
 import jwt
 from sqlalchemy.orm import Session
 from sqlalchemy import select
@@ -13,6 +14,9 @@ from ..utils import utcnow
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 3
 REFRESH_TOKEN_EXPIRE_MINUTES = 5
+
+GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
+GITHUB_USER_URL = "https://api.github.com/user"
 
 
 def create_access_token(user: User) -> str:
@@ -70,3 +74,50 @@ def rotate_refresh_token(raw_token: str, db: Session) -> dict | None:
         "access_token": create_access_token(user),
         "refresh_token": create_refresh_token(user.id, db),
     }
+
+
+async def exchange_github_code(code: str, code_verifier: str) -> dict:
+    payload = {
+        "client_id": settings.GITHUB_CLIENT_ID,
+        "client_secret": settings.GITHUB_CLIENT_SECRET,
+        "code": code,
+        "code_verifier": code_verifier,
+    }
+    headers = {"Accept": "application/json"}
+    async with httpx.AsyncClient() as client:
+        response = await client.post(GITHUB_TOKEN_URL, data=payload, headers=headers)
+        response.raise_for_status()
+        return response.json()
+
+
+async def get_github_user(github_token: str) -> dict:
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            GITHUB_USER_URL, headers={"Authorization": f"Bearer {github_token}"}
+        )
+        response.raise_for_status()
+        return response.json()
+
+
+def upsert_user(github_user_data: dict, db: Session) -> User:
+    github_id = str(github_user_data["id"])
+    user = db.execute(
+        select(User).where(User.github_id == github_id)
+    ).scalar_one_or_none()
+
+    if user is None:
+        user = User(
+            github_id=github_id,
+            username=github_user_data["login"],
+            email=github_user_data.get("email") or "",
+            avatar_url=github_user_data.get("avatar_url") or "",
+        )
+        db.add(user)
+    else:
+        user.username = github_user_data["login"]
+        user.email = github_user_data.get("email") or user.email
+        user.avatar_url = github_user_data.get("avatar_url") or user.avatar_url
+
+    db.commit()
+    db.refresh(user)
+    return user

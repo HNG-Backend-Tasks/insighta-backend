@@ -32,41 +32,39 @@ def test_paginated_response_includes_links_and_total_pages(client, analyst_heade
     assert body["links"]["next"] is not None
     assert body["total_pages"] == math.ceil(body["total"] / 2)
 
+
 def test_export_profiles_returns_csv(client, admin_headers):
     response = client.get(
-        "/api/profiles/export?format=csv",
-        headers=auth(admin_headers)
+        "/api/profiles/export?format=csv", headers=auth(admin_headers)
     )
     assert response.status_code == 200
     assert response.headers["content-type"] == "text/csv; charset=utf-8"
     assert "attachment" in response.headers["content-disposition"]
     assert "profiles_" in response.headers["content-disposition"]
 
+
 def test_export_csv_has_correct_columns(client, admin_headers):
     response = client.get(
-        "/api/profiles/export?format=csv",
-        headers=auth(admin_headers)
+        "/api/profiles/export?format=csv", headers=auth(admin_headers)
     )
     first_line = response.text.split("\n")[0]
-    assert first_line == "id,name,gender,gender_probability,age,age_group,country_id,country_name,country_probability,created_at"
+    assert (
+        first_line
+        == "id,name,gender,gender_probability,age,age_group,country_id,country_name,country_probability,created_at"
+    )
+
 
 def test_request_is_logged(client, analyst_headers, caplog):
     with caplog.at_level(logging.INFO):
-        client.get(
-            "/api/profiles",
-            headers=auth(analyst_headers)
-        )
-    assert any("GET" in r.message and "/api/profiles" in r.message for r in caplog.records)
+        client.get("/api/profiles", headers=auth(analyst_headers))
+    assert any(
+        "GET" in r.message and "/api/profiles" in r.message for r in caplog.records
+    )
+
 
 def test_auth_endpoint_rate_limited_after_10_requests(client, analyst_headers):
     for _ in range(10):
-        client.get(
-            "/auth/test/user",
-            headers=analyst_headers
-        )
-    
-    response = client.get(
-        "/auth/test/user",
-        headers=analyst_headers
-    )
+        client.get("/auth/test/user", headers=analyst_headers)
+
+    response = client.get("/auth/test/user", headers=analyst_headers)
     assert response.status_code == 429

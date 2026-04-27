@@ -1,6 +1,24 @@
-from fastapi import APIRouter, Depends
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi.responses import RedirectResponse
+from sqlalchemy.orm import Session
+
+from ..config import settings
 from .dependencies import get_current_user, require_admin
+from ..database import get_db
 from ..models import User
+from .service import (
+    create_access_token,
+    create_refresh_token,
+    exchange_github_code,
+    get_github_user,
+    get_refresh_token,
+    rotate_refresh_token,
+    upsert_user,
+)
+from .schemas import RefreshRequest
+from ..utils import utcnow
 
 auth_router = APIRouter()
 
@@ -13,3 +31,44 @@ def test_user_endpoint(user: User = Depends(get_current_user)):
 @auth_router.get("/auth/test/admin")
 def test_admin_endpoint(user: User = Depends(require_admin)):
     return {"user_id": user.id, "role": user.role}
+
+
+@auth_router.get("/auth/github/callback")
+async def github_callback(
+    code: str, state: str, code_verifier: str, db: Annotated[Session, Depends(get_db)]
+):
+    token_data = await exchange_github_code(code, code_verifier)
+    github_user_data = await get_github_user(token_data["access_token"])
+    user = upsert_user(github_user_data, db)
+    return {
+        "access_token": create_access_token(user),
+        "refresh_token": create_refresh_token(user.id, db),
+    }
+
+
+@auth_router.get("/auth/github")
+def github_login():
+    params = {
+        "client_id": settings.GITHUB_CLIENT_ID,
+        "scope": "user:email",
+        "redirect_uri": f"{settings.BACKEND_URL}/auth/github/callback",
+    }
+    query = "&".join(f"{k}={v}" for k, v in params.items())
+    return RedirectResponse(f"https://github.com/authorize?{query}")
+
+
+@auth_router.post("/auth/refresh")
+def refresh_token(payload: RefreshRequest, db: Annotated[Session, Depends(get_db)]):
+    result = rotate_refresh_token(payload.refresh_token, db)
+    if not result:
+        raise HTTPException(status_code=401, detail="Invalid or expired refresh token")
+    return {"status": "success", **result}
+
+
+@auth_router.post("/auth/logout")
+def logout(payload: RefreshRequest, db: Annotated[Session, Depends(get_db)]):
+    token = get_refresh_token(payload.refresh_token, db)
+    if token:
+        token.used_at = utcnow()
+        db.commit()
+    return {"status": "success"}

@@ -1,4 +1,5 @@
 from datetime import datetime, UTC
+from unittest.mock import AsyncMock, patch
 
 import jwt as pyjwt
 
@@ -208,3 +209,117 @@ def test_analyst_cannot_delete_profile(client, analyst_headers):
         "/api/profiles/some-id", headers={**analyst_headers, "X-API-Version": "1"}
     )
     assert response.status_code == 403
+
+
+def test_github_callback_creates_new_user_and_returns_tokens(client, db):
+    mock_token_response = {"access_token": "github_token_abc"}
+    mock_user_response = {
+        "id": 99991,
+        "login": "newgithubuser",
+        "email": "newuser@example.com",
+        "avatar_url": "https://github.com/avatar.png",
+    }
+
+    with (
+        patch(
+            "app.auth.router.exchange_github_code", new_callable=AsyncMock
+        ) as mock_exchange,
+        patch("app.auth.router.get_github_user", new_callable=AsyncMock) as mock_user,
+    ):
+        mock_exchange.return_value = mock_token_response
+        mock_user.return_value = mock_user_response
+
+        response = client.get(
+            "/auth/github/callback?code=testcode&state=teststate&code_verifier=testverifier"
+        )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert "access_token" in body
+    assert "refresh_token" in body
+
+    user = db.execute(
+        select(User).where(User.github_id == "99991")
+    ).scalar_one_or_none()
+    assert user is not None
+    assert user.username == "newgithubuser"
+    assert user.role == Role.ANALYST
+
+
+def test_github_callback_updates_existing_user(client, db):
+    mock_token_response = {"access_token": "github_token_abc"}
+    mock_user_response = {
+        "id": 99991,  # same github_id as previous test
+        "login": "updatedusername",
+        "email": "updated@example.com",
+        "avatar_url": "https://github.com/avatar.png",
+    }
+
+    with (
+        patch(
+            "app.auth.router.exchange_github_code", new_callable=AsyncMock
+        ) as mock_exchange,
+        patch("app.auth.router.get_github_user", new_callable=AsyncMock) as mock_user,
+    ):
+        mock_exchange.return_value = mock_token_response
+        mock_user.return_value = mock_user_response
+
+        response = client.get(
+            "/auth/github/callback?code=testcode&state=teststate&code_verifier=testverifier"
+        )
+
+    assert response.status_code == 200
+
+    user = db.execute(
+        select(User).where(User.github_id == "99991")
+    ).scalar_one_or_none()
+    assert user.username == "updatedusername"
+    assert user.email == "updated@example.com"
+
+
+def test_refresh_token_endpoint_returns_new_token_pair(client, db):
+    user = db.execute(select(User).limit(1)).scalar_one()
+    raw_refresh_token = create_refresh_token(user.id, db)
+
+    response = client.post("/auth/refresh", json={"refresh_token": raw_refresh_token})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["status"] == "success"
+    assert "access_token" in body
+    assert "refresh_token" in body
+    assert body["refresh_token"] != raw_refresh_token  # new token issued
+
+
+def test_refresh_token_endpoint_rejects_used_token(client, db):
+    user = db.execute(select(User).limit(1)).scalar_one()
+    raw_refresh_token = create_refresh_token(user.id, db)
+
+    # use it once
+    client.post("/auth/refresh", json={"refresh_token": raw_refresh_token})
+
+    # use it again
+    response = client.post("/auth/refresh", json={"refresh_token": raw_refresh_token})
+    assert response.status_code == 401
+
+
+def test_logout_invalidates_refresh_token(client, db):
+    user = db.execute(select(User).limit(1)).scalar_one()
+    raw_refresh_token = create_refresh_token(user.id, db)
+
+    logout_response = client.post(
+        "/auth/logout", json={"refresh_token": raw_refresh_token}
+    )
+    assert logout_response.status_code == 200
+
+    # token should now be invalid
+    refresh_response = client.post(
+        "/auth/refresh", json={"refresh_token": raw_refresh_token}
+    )
+    assert refresh_response.status_code == 401
+
+
+def test_github_redirect_returns_302(client):
+    response = client.get("/auth/github", follow_redirects=False)
+    assert response.status_code == 307
+    assert "github.com" in response.headers["location"]
