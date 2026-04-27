@@ -35,7 +35,10 @@ def test_admin_endpoint(user: User = Depends(require_admin)):
 
 @auth_router.get("/auth/github/callback")
 async def github_callback(
-    code: str, state: str,db: Annotated[Session, Depends(get_db)], code_verifier: str = "" # (code_verifier) optional — only used in CLI PKCE flow
+    code: str,
+    state: str,
+    db: Annotated[Session, Depends(get_db)],
+    code_verifier: str = "",  # (code_verifier) optional — only used in CLI PKCE flow
 ):
     token_data = await exchange_github_code(code, code_verifier)
     github_user_data = await get_github_user(token_data["access_token"])
@@ -72,3 +75,15 @@ def logout(payload: RefreshRequest, db: Annotated[Session, Depends(get_db)]):
         token.used_at = utcnow()
         db.commit()
     return {"status": "success"}
+
+
+@auth_router.get("/auth/me")
+def get_me(user: Annotated[User, Depends(get_current_user)]):
+    return {
+        "id": user.id,
+        "username": user.username,
+        "email": user.email,
+        "role": user.role,
+        "avatar_url": user.avatar_url,
+        "created_at": user.created_at,
+    }

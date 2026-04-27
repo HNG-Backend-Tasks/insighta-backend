@@ -323,3 +323,13 @@ def test_github_redirect_returns_302(client):
     response = client.get("/auth/github", follow_redirects=False)
     assert response.status_code == 307
     assert "github.com" in response.headers["location"]
+
+def test_get_me_returns_current_user(client, analyst_headers):
+    response = client.get(
+        "/auth/me",
+        headers=analyst_headers
+    )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["username"] == "analystuser"
+    assert body["role"] == "analyst"
