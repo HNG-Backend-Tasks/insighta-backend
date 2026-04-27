@@ -39,9 +39,10 @@ def test_export_profiles_returns_csv(client, admin_headers):
     )
     assert response.status_code == 200
     assert response.headers["content-type"] == "text/csv; charset=utf-8"
-    assert "attachment" in response.headers["content-disposition"]
-    assert "profiles_" in response.headers["content-disposition"]
-
+    content_disposition = response.headers["content-disposition"]
+    assert "attachment" in content_disposition
+    assert 'filename="profiles_' in content_disposition
+    assert content_disposition.endswith('.csv"')
 
 def test_export_csv_has_correct_columns(client, admin_headers):
     response = client.get(
@@ -52,6 +53,21 @@ def test_export_csv_has_correct_columns(client, admin_headers):
         first_line
         == "id,name,gender,gender_probability,age,age_group,country_id,country_name,country_probability,created_at"
     )
+
+def test_export_profiles_missing_format_returns_400(client, admin_headers):
+    response = client.get("/api/profiles/export", headers=auth(admin_headers))
+    assert response.status_code == 400
+    assert response.json()["message"] == "format must be provided as csv"
+
+
+def test_export_profiles_unsupported_format_returns_400(client, admin_headers):
+    response = client.get(
+        "/api/profiles/export?format=json", headers=auth(admin_headers)
+    )
+    assert response.status_code == 400
+    print(response.json())
+    assert response.json()["message"] == "format must be provided as csv"
+
 
 
 def test_request_is_logged(client, analyst_headers, caplog):

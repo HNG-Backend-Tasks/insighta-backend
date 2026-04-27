@@ -112,12 +112,16 @@ def search_profiles(
 @read_router.get("/api/profiles/export")
 def export_profiles(
     db: Annotated[Session, Depends(get_db)],
-    query: Annotated[ProfileQuery, Query()],
+    query: Annotated[ProfileQuery, Depends()],
+    format: str | None = Query(default=None),
 ):
     import csv
     import io
 
     from fastapi.responses import StreamingResponse
+
+    if format != "csv":
+        raise HTTPException(status_code=400, detail="format must be provided as csv")
 
     result = get_profiles(db, **{**query.model_dump(), "page": 1, "limit": 100_000})
 
@@ -161,7 +165,7 @@ def export_profiles(
     return StreamingResponse(
         iter([buffer.getvalue()]),
         media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename={filename}"},
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'}
     )
 
 
