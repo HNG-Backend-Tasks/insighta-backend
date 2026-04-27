@@ -35,7 +35,7 @@ def test_admin_endpoint(user: User = Depends(require_admin)):
 
 @auth_router.get("/auth/github/callback")
 async def github_callback(
-    code: str, state: str, code_verifier: str, db: Annotated[Session, Depends(get_db)]
+    code: str, state: str,db: Annotated[Session, Depends(get_db)], code_verifier: str = "" # (code_verifier) optional — only used in CLI PKCE flow
 ):
     token_data = await exchange_github_code(code, code_verifier)
     github_user_data = await get_github_user(token_data["access_token"])
