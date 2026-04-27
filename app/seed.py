@@ -1,5 +1,5 @@
 import json
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import uuid6
@@ -36,9 +36,9 @@ def batch_insert_profiles(profiles: list[dict], db: Session) -> None:
             "country_id": profile["country_id"],
             "country_name": profile["country_name"],
             "country_probability": profile["country_probability"],
-            "created_at": datetime.now(UTC),
+            "created_at": datetime.now(UTC).replace(tzinfo=None) - timedelta(seconds=i),
         }
-        for profile in profiles
+        for i, profile in enumerate(profiles)
     ]
 
     stmt = insert(Profiles).values(records).prefix_with("OR IGNORE")
