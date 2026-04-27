@@ -79,7 +79,9 @@ def list_profiles_endpoint(
     query: Annotated[ProfileQuery, Query()],
 ):
     result = get_profiles(db, **query.model_dump())
-    return paginated_response(request, result)
+    active = {k: v for k, v in query.model_dump().items() 
+              if v is not None and k not in ("page", "limit")}
+    return paginated_response(request, result, active)
 
 
 @read_router.get("/api/profiles/search")
@@ -98,7 +100,9 @@ def search_profiles(
         raise HTTPException(status_code=422, detail="Unable to interpret query")
 
     result = get_profiles(db, page=page, limit=limit, **filters)
-    return paginated_response(request, result)
+    active = {k: v for k, v in filters.items() 
+              if v is not None and k not in ("page", "limit")}
+    return paginated_response(request, result, active)
 
 
 @read_router.get("/api/profiles/export")
@@ -180,18 +184,18 @@ def delete_profile_endpoint(id: str, db: Annotated[Session, Depends(get_db)]):
     return Response(status_code=204)
 
 
-def build_links(path: str, page: int, limit: int, total_pages: int) -> dict:
+def build_links(path: str, page: int, limit: int, total_pages: int, extra_params: dict = {}) -> dict:
     def url(p):
-        return f"{path}?page={p}&limit={limit}"
-
+        params = {**extra_params, "page": p, "limit": limit}
+        query = "&".join(f"{k}={v}" for k, v in params.items())
+        return f"{path}?{query}"
     return {
         "self": url(page),
         "next": url(page + 1) if page < total_pages else None,
         "prev": url(page - 1) if page > 1 else None,
     }
 
-
-def paginated_response(request: Request, result: dict) -> dict:
+def paginated_response(request: Request, result: dict, extra_params: dict = {}) -> dict:
     total_pages = math.ceil(result["total"] / result["limit"])
     return {
         "status": "success",
@@ -200,7 +204,7 @@ def paginated_response(request: Request, result: dict) -> dict:
         "total": result["total"],
         "total_pages": total_pages,
         "links": build_links(
-            request.url.path, result["page"], result["limit"], total_pages
+            request.url.path, result["page"], result["limit"], total_pages, extra_params
         ),
         "data": [ProfileListItem.model_validate(p) for p in result["data"]],
     }

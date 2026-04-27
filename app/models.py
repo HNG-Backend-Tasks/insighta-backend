@@ -101,6 +101,10 @@ class ProfileListItem(BaseModel):
     id: str
     name: str
     gender: str
+    gender_probability: float
     age: int
     age_group: AgeGroup
     country_id: str
+    country_name: str
+    country_probability: float
+    created_at: datetime
