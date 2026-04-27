@@ -75,17 +75,26 @@ def rotate_refresh_token(raw_token: str, db: Session) -> dict | None:
     }
 
 
-async def exchange_github_code(code: str, code_verifier: str = "") -> dict:
+async def exchange_github_code(
+    code: str,
+    client_id: str,
+    client_secret: str,
+    code_verifier: str = ""
+) -> dict:
     payload = {
-        "client_id": settings.GITHUB_CLIENT_ID,
-        "client_secret": settings.GITHUB_CLIENT_SECRET,
+        "client_id": client_id,
+        "client_secret": client_secret,
         "code": code,
     }
     if code_verifier:
         payload["code_verifier"] = code_verifier
-    headers = {"Accept": "application/json"}
+
     async with httpx.AsyncClient() as client:
-        response = await client.post(GITHUB_TOKEN_URL, data=payload, headers=headers)
+        response = await client.post(
+            GITHUB_TOKEN_URL,
+            json=payload,
+            headers={"Accept": "application/json"}
+        )
         response.raise_for_status()
         return response.json()
 

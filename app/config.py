@@ -5,8 +5,10 @@ class Settings(BaseSettings):
     DATABASE_URL: str
     SECRET_KEY: str
 
-    GITHUB_CLIENT_ID: str
-    GITHUB_CLIENT_SECRET: str
+    GITHUB_CLIENT_ID_WEB: str
+    GITHUB_CLIENT_SECRET_WEB: str
+    GITHUB_CLIENT_ID_CLI: str
+    GITHUB_CLIENT_SECRET_CLI: str
 
     ALGORITHM: str = "HS256"
 

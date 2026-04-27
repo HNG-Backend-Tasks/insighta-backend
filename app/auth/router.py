@@ -38,9 +38,17 @@ async def github_callback(
     code: str,
     state: str,
     db: Annotated[Session, Depends(get_db)],
-    code_verifier: str = "",  # (code_verifier) optional — only used in CLI PKCE flow
+    code_verifier: str = "",
+    client_source: str = "web",
 ):
-    token_data = await exchange_github_code(code, code_verifier)
+    if client_source == "cli":
+        client_id = settings.GITHUB_CLIENT_ID_CLI
+        client_secret = settings.GITHUB_CLIENT_SECRET_CLI
+    else:
+        client_id = settings.GITHUB_CLIENT_ID_WEB
+        client_secret = settings.GITHUB_CLIENT_SECRET_WEB
+
+    token_data = await exchange_github_code(code, client_id, client_secret, code_verifier)
     github_user_data = await get_github_user(token_data["access_token"])
     user = upsert_user(github_user_data, db)
     return {
@@ -52,7 +60,7 @@ async def github_callback(
 @auth_router.get("/auth/github")
 def github_login():
     params = {
-        "client_id": settings.GITHUB_CLIENT_ID,
+        "client_id": settings.GITHUB_CLIENT_ID_WEB,
         "scope": "user:email",
         "redirect_uri": f"{settings.BACKEND_URL}/auth/github/callback",
     }
