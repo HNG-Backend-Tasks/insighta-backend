@@ -12,6 +12,7 @@ from .api import admin_router, read_router
 from .auth.router import auth_router
 from .database import Base, engine
 
+logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("insighta")
 
 request_counts: dict = defaultdict(list)
@@ -100,6 +101,7 @@ async def rate_limit(request: Request, call_next):
 
     request_counts[key].append(now)
     return await call_next(request)
+
 
 app.include_router(auth_router)
 app.include_router(read_router)

@@ -48,7 +48,9 @@ async def github_callback(
         client_id = settings.GITHUB_CLIENT_ID_WEB
         client_secret = settings.GITHUB_CLIENT_SECRET_WEB
 
-    token_data = await exchange_github_code(code, client_id, client_secret, code_verifier)
+    token_data = await exchange_github_code(
+        code, client_id, client_secret, code_verifier
+    )
     github_user_data = await get_github_user(token_data["access_token"])
     user = upsert_user(github_user_data, db)
     return {

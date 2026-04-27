@@ -76,10 +76,7 @@ def rotate_refresh_token(raw_token: str, db: Session) -> dict | None:
 
 
 async def exchange_github_code(
-    code: str,
-    client_id: str,
-    client_secret: str,
-    code_verifier: str = ""
+    code: str, client_id: str, client_secret: str, code_verifier: str = ""
 ) -> dict:
     payload = {
         "client_id": client_id,
@@ -91,9 +88,7 @@ async def exchange_github_code(
 
     async with httpx.AsyncClient() as client:
         response = await client.post(
-            GITHUB_TOKEN_URL,
-            json=payload,
-            headers={"Accept": "application/json"}
+            GITHUB_TOKEN_URL, json=payload, headers={"Accept": "application/json"}
         )
         response.raise_for_status()
         return response.json()
@@ -120,7 +115,7 @@ def upsert_user(github_user_data: dict, db: Session) -> User:
             username=github_user_data["login"],
             email=github_user_data.get("email") or "",
             avatar_url=github_user_data.get("avatar_url") or "",
-            last_login_at=utcnow()
+            last_login_at=utcnow(),
         )
         db.add(user)
     else:
