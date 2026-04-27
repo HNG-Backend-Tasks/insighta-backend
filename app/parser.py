@@ -1,7 +1,6 @@
 import unicodedata
 from typing import Union
 
-
 GENDER_MAP = {
     "male": "male",
     "males": "male",

@@ -1,11 +1,11 @@
-from typing import Literal
 import asyncio
+from typing import Literal
 
-from .models import AgeGroup, Profiles, Gender
-from .clients import get_age, get_gender, get_nationality
-
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func
+
+from .clients import get_age, get_gender, get_nationality
+from .models import AgeGroup, Gender, Profiles
 
 
 def _classify_age(age: int) -> AgeGroup:

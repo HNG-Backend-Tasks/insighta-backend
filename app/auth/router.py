@@ -5,9 +5,11 @@ from fastapi.responses import RedirectResponse
 from sqlalchemy.orm import Session
 
 from ..config import settings
-from .dependencies import get_current_user, require_admin
 from ..database import get_db
 from ..models import User
+from ..utils import utcnow
+from .dependencies import get_current_user, require_admin
+from .schemas import RefreshRequest
 from .service import (
     create_access_token,
     create_refresh_token,
@@ -17,8 +19,6 @@ from .service import (
     rotate_refresh_token,
     upsert_user,
 )
-from .schemas import RefreshRequest
-from ..utils import utcnow
 
 auth_router = APIRouter()
 

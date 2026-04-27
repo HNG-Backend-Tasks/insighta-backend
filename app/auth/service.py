@@ -1,16 +1,15 @@
-from datetime import timedelta
-import secrets
 import hashlib
+import secrets
+from datetime import timedelta
 
 import httpx
 import jwt
-from sqlalchemy.orm import Session
 from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 from ..config import settings
-from ..models import User, RefreshToken
+from ..models import RefreshToken, User
 from ..utils import utcnow
-
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 3
 REFRESH_TOKEN_EXPIRE_MINUTES = 5

@@ -1,22 +1,22 @@
-from typing import Annotated, Literal
 import math
+from typing import Annotated, Literal
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, Query
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
+from .auth.dependencies import get_current_user, require_admin
 from .database import get_db
+from .models import AgeGroup, Gender, ProfileListItem, ProfileResponse
+from .parser import parse_query
 from .service import (
     create_profile,
+    delete_profile,
     enrich_profile_data,
     get_profile,
     get_profiles,
-    delete_profile,
 )
-from .auth.dependencies import get_current_user, require_admin
-from .models import ProfileResponse, ProfileListItem, AgeGroup, Gender
-from .parser import parse_query
 from .utils import utcnow
 
 router = APIRouter()
@@ -108,6 +108,7 @@ def export_profiles(
 ):
     import csv
     import io
+
     from fastapi.responses import StreamingResponse
 
     result = get_profiles(db, **{**query.model_dump(), "page": 1, "limit": 100_000})

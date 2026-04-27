@@ -1,10 +1,9 @@
 from datetime import UTC, datetime
 from enum import StrEnum
+
 import uuid6
-
-
 from pydantic import BaseModel, ConfigDict
-from sqlalchemy import DateTime, String, Float, Integer, ForeignKey
+from sqlalchemy import DateTime, Float, ForeignKey, Integer, String
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column
 

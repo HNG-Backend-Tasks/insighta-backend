@@ -1,15 +1,13 @@
 import json
+from datetime import UTC, datetime
 from pathlib import Path
-from datetime import datetime, UTC
 
 import uuid6
+from sqlalchemy import func, select
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.orm import Session
-from sqlalchemy import select, func
-
 
 from .models import Profiles
-
 
 BASE_DIR = Path(__file__).parent.parent
 SEED_FILE = BASE_DIR / "seed_profiles.json"
@@ -49,7 +47,7 @@ def batch_insert_profiles(profiles: list[dict], db: Session) -> None:
 
 
 if __name__ == "__main__":
-    from .database import SessionLocal, engine, Base
+    from .database import Base, SessionLocal, engine
 
     Base.metadata.create_all(bind=engine)
 

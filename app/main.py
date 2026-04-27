@@ -1,17 +1,16 @@
-from contextlib import asynccontextmanager
-from collections import defaultdict
 import logging
 import time
+from collections import defaultdict
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 
-from .database import engine, Base
-from .api import read_router, admin_router
+from .api import admin_router, read_router
 from .auth.router import auth_router
-
+from .database import Base, engine
 
 logger = logging.getLogger("insighta")
 
