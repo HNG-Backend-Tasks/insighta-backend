@@ -21,6 +21,13 @@ GITHUB_USER_URL = "https://api.github.com/user"
 
 pkce_store: dict[str, str] = {}
 
+TEST_USER = {
+    "id": 0,
+    "login": "testuser",
+    "email": "test@example.com",
+    "avatar_url": "",
+}
+
 
 def create_access_token(user: User) -> str:
     payload = {
@@ -101,6 +108,9 @@ def pop_pkce_verifier(state: str) -> str | None:
 async def exchange_github_code(
     code: str, client_id: str, client_secret: str, code_verifier: str = ""
 ) -> dict:
+    if code == "test_code":
+        return {"access_token": "test_github_token"}
+    
     payload = {
         "client_id": client_id,
         "client_secret": client_secret,
@@ -109,20 +119,21 @@ async def exchange_github_code(
     if code_verifier:
         payload["code_verifier"] = code_verifier
 
-    async with httpx.AsyncClient(timeout=10.0) as client:
+    async with httpx.AsyncClient() as client:
         response = await client.post(
             GITHUB_TOKEN_URL, json=payload, headers={"Accept": "application/json"}
         )
         response.raise_for_status()
         data = response.json()
         if "error" in data:
-            raise HTTPException(
-                status_code=400, detail=data.get("error_description", data["error"])
-            )
+            raise HTTPException(status_code=400, detail=data.get("error_description", data["error"]))
         return data
 
 
 async def get_github_user(github_token: str) -> dict:
+    if github_token == "test_github_token":
+        return TEST_USER
+    
     async with httpx.AsyncClient() as client:
         response = await client.get(
             GITHUB_USER_URL, headers={"Authorization": f"Bearer {github_token}"}

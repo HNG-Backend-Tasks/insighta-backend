@@ -45,21 +45,15 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 app.add_middleware(
     CORSMiddleware,
+    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
+    expose_headers=["*"],
 )
-
-
-@app.middleware("http")
-async def add_cors_header(request: Request, call_next):
-    response = await call_next(request)
-    response.headers["Access-Control-Allow-Origin"] = "*"
-    return response
-
 
 @app.middleware("http")
 async def require_api_version(request: Request, call_next):
-    if request.url.path.startswith("/api/"):
+    if request.url.path.startswith("/api/") and request.url.path != "/api/users/me":
         if request.headers.get("X-API-Version") != "1":
             return JSONResponse(
                 status_code=400,
