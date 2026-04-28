@@ -45,7 +45,6 @@ async def validation_exception_handler(request: Request, exc: RequestValidationE
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -84,19 +83,20 @@ async def log_requests(request: Request, call_next):
 async def rate_limit(request: Request, call_next):
     now = time.time()
     path = request.url.path
+    client_host = request.client.host if request.client else "testclient"
 
     if path.startswith("/auth/"):
-        key = f"{request.client.host}:{path}"
+        key = f"{client_host}:{path}"
         limit = 10
     else:
-        # per-user for /api/* — use Bearer token or cookie as identity
         token = request.headers.get("Authorization", "") or request.cookies.get(
             "access_token", ""
         )
-        key = f"{token}:{path}" if token else f"{request.client.host}:{path}"
+        key = f"{token}:{path}" if token else f"{client_host}:{path}"
         limit = 60
 
     request_counts[key] = [t for t in request_counts[key] if now - t < 60]
+
     if len(request_counts[key]) >= limit:
         return JSONResponse(
             status_code=429, content={"status": "error", "message": "Too many requests"}

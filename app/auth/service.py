@@ -1,9 +1,11 @@
+import base64
 import hashlib
 import secrets
 from datetime import timedelta
 
 import httpx
 import jwt
+from fastapi import HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -16,6 +18,8 @@ REFRESH_TOKEN_EXPIRE_MINUTES = 5
 
 GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
 GITHUB_USER_URL = "https://api.github.com/user"
+
+pkce_store: dict[str, str] = {}
 
 
 def create_access_token(user: User) -> str:
@@ -75,6 +79,25 @@ def rotate_refresh_token(raw_token: str, db: Session) -> dict | None:
     }
 
 
+def generate_pkce_pair() -> tuple[str, str]:
+    verifier = secrets.token_urlsafe(32)
+    digest = hashlib.sha256(verifier.encode()).digest()
+    challenge = base64.urlsafe_b64encode(digest).rstrip(b"=").decode()
+    return verifier, challenge
+
+
+def generate_state() -> str:
+    return secrets.token_urlsafe(16)
+
+
+def store_pkce(state: str, verifier: str):
+    pkce_store[state] = verifier
+
+
+def pop_pkce_verifier(state: str) -> str | None:
+    return pkce_store.pop(state, None)
+
+
 async def exchange_github_code(
     code: str, client_id: str, client_secret: str, code_verifier: str = ""
 ) -> dict:
@@ -86,12 +109,17 @@ async def exchange_github_code(
     if code_verifier:
         payload["code_verifier"] = code_verifier
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=10.0) as client:
         response = await client.post(
             GITHUB_TOKEN_URL, json=payload, headers={"Accept": "application/json"}
         )
         response.raise_for_status()
-        return response.json()
+        data = response.json()
+        if "error" in data:
+            raise HTTPException(
+                status_code=400, detail=data.get("error_description", data["error"])
+            )
+        return data
 
 
 async def get_github_user(github_token: str) -> dict:

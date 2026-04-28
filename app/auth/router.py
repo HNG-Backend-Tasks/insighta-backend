@@ -14,13 +14,34 @@ from .service import (
     create_access_token,
     create_refresh_token,
     exchange_github_code,
+    generate_pkce_pair,
+    generate_state,
     get_github_user,
     get_refresh_token,
     rotate_refresh_token,
+    store_pkce,
     upsert_user,
 )
 
 auth_router = APIRouter()
+
+
+@auth_router.get("/auth/github")
+def github_login():
+    state = generate_state()
+    verifier, challenge = generate_pkce_pair()
+    store_pkce(state, verifier)
+
+    params = {
+        "client_id": settings.GITHUB_CLIENT_ID_WEB,
+        "scope": "user:email",
+        "redirect_uri": f"{settings.BACKEND_URL}/auth/github/callback",
+        "state": state,
+        "code_challenge": challenge,
+        "code_challenge_method": "S256",
+    }
+    query = "&".join(f"{k}={v}" for k, v in params.items())
+    return RedirectResponse(f"https://github.com/login/oauth/authorize?{query}")
 
 
 @auth_router.get("/auth/github/callback")
@@ -31,9 +52,16 @@ async def github_callback(
     code_verifier: str = "",
     client_source: str = "web",
 ):
+    if not code:
+        raise HTTPException(status_code=400, detail="Missing code")
+    if not state:
+        raise HTTPException(status_code=400, detail="Missing state")
+
     if client_source == "cli":
         client_id = settings.GITHUB_CLIENT_ID_CLI
         client_secret = settings.GITHUB_CLIENT_SECRET_CLI
+        if not code_verifier:
+            raise HTTPException(status_code=400, detail="Missing code_verifier")
     else:
         client_id = settings.GITHUB_CLIENT_ID_WEB
         client_secret = settings.GITHUB_CLIENT_SECRET_WEB
@@ -43,22 +71,12 @@ async def github_callback(
     )
     github_user_data = await get_github_user(token_data["access_token"])
     user = upsert_user(github_user_data, db)
+
     return {
         "access_token": create_access_token(user),
         "refresh_token": create_refresh_token(user.id, db),
         "username": user.username,
     }
-
-
-@auth_router.get("/auth/github")
-def github_login():
-    params = {
-        "client_id": settings.GITHUB_CLIENT_ID_WEB,
-        "scope": "user:email",
-        "redirect_uri": f"{settings.BACKEND_URL}/auth/github/callback",
-    }
-    query = "&".join(f"{k}={v}" for k, v in params.items())
-    return RedirectResponse(f"https://github.com/login/oauth/authorize?{query}")
 
 
 @auth_router.post("/auth/refresh")
