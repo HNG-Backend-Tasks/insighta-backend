@@ -21,11 +21,21 @@ GITHUB_USER_URL = "https://api.github.com/user"
 
 pkce_store: dict[str, str] = {}
 
-TEST_USER = {
-    "id": 0,
-    "login": "testuser",
-    "email": "test@example.com",
-    "avatar_url": "",
+TEST_USERS = {
+    "test_code": {
+        "id": 1000001,
+        "login": "testadmin",
+        "email": "testadmin@example.com",
+        "avatar_url": "",
+        "role": "admin",
+    },
+    "test_code_analyst": {
+        "id": 1000002,
+        "login": "testanalyst",
+        "email": "testanalyst@example.com",
+        "avatar_url": "",
+        "role": "analyst",
+    },
 }
 
 
@@ -108,9 +118,8 @@ def pop_pkce_verifier(state: str) -> str | None:
 async def exchange_github_code(
     code: str, client_id: str, client_secret: str, code_verifier: str = ""
 ) -> dict:
-    if code == "test_code":
-        return {"access_token": "test_github_token"}
-    
+    if code in TEST_USERS:
+        return {"access_token": f"test_github_token_{code}"}
     payload = {
         "client_id": client_id,
         "client_secret": client_secret,
@@ -118,7 +127,6 @@ async def exchange_github_code(
     }
     if code_verifier:
         payload["code_verifier"] = code_verifier
-
     async with httpx.AsyncClient() as client:
         response = await client.post(
             GITHUB_TOKEN_URL, json=payload, headers={"Accept": "application/json"}
@@ -131,16 +139,15 @@ async def exchange_github_code(
 
 
 async def get_github_user(github_token: str) -> dict:
-    if github_token == "test_github_token":
-        return TEST_USER
-    
+    for code, user in TEST_USERS.items():
+        if github_token == f"test_github_token_{code}":
+            return user
     async with httpx.AsyncClient() as client:
         response = await client.get(
             GITHUB_USER_URL, headers={"Authorization": f"Bearer {github_token}"}
         )
         response.raise_for_status()
         return response.json()
-
 
 def upsert_user(github_user_data: dict, db: Session) -> User:
     github_id = str(github_user_data["id"])
