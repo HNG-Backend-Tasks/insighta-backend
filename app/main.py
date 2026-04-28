@@ -51,6 +51,7 @@ app.add_middleware(
     expose_headers=["*"],
 )
 
+
 @app.middleware("http")
 async def require_api_version(request: Request, call_next):
     if request.url.path.startswith("/api/") and request.url.path != "/api/users/me":

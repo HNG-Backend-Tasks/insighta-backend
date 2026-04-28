@@ -43,6 +43,7 @@ def github_login():
     query = "&".join(f"{k}={v}" for k, v in params.items())
     return RedirectResponse(f"https://github.com/login/oauth/authorize?{query}")
 
+
 @auth_router.get("/auth/github/callback")
 async def github_callback(
     db: Annotated[Session, Depends(get_db)],
@@ -65,7 +66,9 @@ async def github_callback(
         client_id = settings.GITHUB_CLIENT_ID_WEB
         client_secret = settings.GITHUB_CLIENT_SECRET_WEB
 
-    token_data = await exchange_github_code(code, client_id, client_secret, code_verifier)
+    token_data = await exchange_github_code(
+        code, client_id, client_secret, code_verifier
+    )
     github_user_data = await get_github_user(token_data["access_token"])
     user = upsert_user(github_user_data, db)
 
@@ -77,8 +80,10 @@ async def github_callback(
 
 
 @auth_router.post("/auth/refresh")
-def refresh_token(payload: RefreshRequest | None, db: Annotated[Session, Depends(get_db)]):
-    if not payload or not payload.refresh_token:
+def refresh_token(
+    payload: RefreshRequest | None, db: Annotated[Session, Depends(get_db)]
+):
+    if not payload.refresh_token:
         raise HTTPException(status_code=400, detail="Missing refresh_token")
     result = rotate_refresh_token(payload.refresh_token, db)
     if not result:
@@ -88,13 +93,14 @@ def refresh_token(payload: RefreshRequest | None, db: Annotated[Session, Depends
 
 @auth_router.post("/auth/logout")
 def logout(payload: RefreshRequest | None, db: Annotated[Session, Depends(get_db)]):
-    if not payload or not payload.refresh_token:
+    if not payload.refresh_token:
         raise HTTPException(status_code=400, detail="Missing refresh_token")
     token = get_refresh_token(payload.refresh_token, db)
     if token:
         token.used_at = utcnow()
         db.commit()
     return {"status": "success"}
+
 
 @auth_router.get("/api/users/me")
 def get_me_alias(user: Annotated[User, Depends(get_current_user)]):
@@ -106,6 +112,7 @@ def get_me_alias(user: Annotated[User, Depends(get_current_user)]):
         "avatar_url": user.avatar_url,
         "created_at": user.created_at,
     }
+
 
 @auth_router.get("/auth/me")
 def get_me(user: Annotated[User, Depends(get_current_user)]):

@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..config import settings
-from ..models import RefreshToken, User
+from ..models import RefreshToken, Role, User
 from ..utils import utcnow
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 3
@@ -134,7 +134,9 @@ async def exchange_github_code(
         response.raise_for_status()
         data = response.json()
         if "error" in data:
-            raise HTTPException(status_code=400, detail=data.get("error_description", data["error"]))
+            raise HTTPException(
+                status_code=400, detail=data.get("error_description", data["error"])
+            )
         return data
 
 
@@ -149,6 +151,7 @@ async def get_github_user(github_token: str) -> dict:
         response.raise_for_status()
         return response.json()
 
+
 def upsert_user(github_user_data: dict, db: Session) -> User:
     github_id = str(github_user_data["id"])
     user = db.execute(
@@ -161,6 +164,7 @@ def upsert_user(github_user_data: dict, db: Session) -> User:
             username=github_user_data["login"],
             email=github_user_data.get("email") or "",
             avatar_url=github_user_data.get("avatar_url") or "",
+            role=github_user_data.get("role", Role.ANALYST),
             last_login_at=utcnow(),
         )
         db.add(user)
