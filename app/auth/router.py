@@ -18,6 +18,7 @@ from .service import (
     generate_state,
     get_github_user,
     get_refresh_token,
+    pop_pkce_verifier,
     rotate_refresh_token,
     store_pkce,
     upsert_user,
@@ -65,6 +66,9 @@ async def github_callback(
     else:
         client_id = settings.GITHUB_CLIENT_ID_WEB
         client_secret = settings.GITHUB_CLIENT_SECRET_WEB
+        stored_verifier = pop_pkce_verifier(state)
+        if stored_verifier:
+            code_verifier = stored_verifier
 
     token_data = await exchange_github_code(
         code, client_id, client_secret, code_verifier
@@ -80,9 +84,7 @@ async def github_callback(
 
 
 @auth_router.post("/auth/refresh")
-def refresh_token(
-    payload: RefreshRequest | None, db: Annotated[Session, Depends(get_db)]
-):
+def refresh_token(payload: RefreshRequest, db: Annotated[Session, Depends(get_db)]):
     if not payload.refresh_token:
         raise HTTPException(status_code=400, detail="Missing refresh_token")
     result = rotate_refresh_token(payload.refresh_token, db)
@@ -92,11 +94,11 @@ def refresh_token(
 
 
 @auth_router.post("/auth/logout")
-def logout(payload: RefreshRequest | None, db: Annotated[Session, Depends(get_db)]):
+def logout(payload: RefreshRequest, db: Annotated[Session, Depends(get_db)]):
     if not payload.refresh_token:
         raise HTTPException(status_code=400, detail="Missing refresh_token")
     token = get_refresh_token(payload.refresh_token, db)
-    if token:
+    if token:   
         token.used_at = utcnow()
         db.commit()
     return {"status": "success"}
@@ -107,6 +109,7 @@ def get_me_alias(user: Annotated[User, Depends(get_current_user)]):
     return {
         "id": user.id,
         "username": user.username,
+        "github_id": user.github_id,
         "email": user.email,
         "role": user.role,
         "avatar_url": user.avatar_url,

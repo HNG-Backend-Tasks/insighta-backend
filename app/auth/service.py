@@ -26,14 +26,14 @@ TEST_USERS = {
         "id": 1000001,
         "login": "testadmin",
         "email": "testadmin@example.com",
-        "avatar_url": "",
+        "avatar_url": "https://avatars.githubusercontent.com/u/1000001",
         "role": "admin",
     },
     "test_code_analyst": {
         "id": 1000002,
         "login": "testanalyst",
         "email": "testanalyst@example.com",
-        "avatar_url": "",
+        "avatar_url": "https://avatars.githubusercontent.com/u/1000002",
         "role": "analyst",
     },
 }
@@ -151,7 +151,6 @@ async def get_github_user(github_token: str) -> dict:
         response.raise_for_status()
         return response.json()
 
-
 def upsert_user(github_user_data: dict, db: Session) -> User:
     github_id = str(github_user_data["id"])
     user = db.execute(
@@ -173,6 +172,8 @@ def upsert_user(github_user_data: dict, db: Session) -> User:
         user.email = github_user_data.get("email") or user.email
         user.avatar_url = github_user_data.get("avatar_url") or user.avatar_url
         user.last_login_at = utcnow()
+        if "role" in github_user_data:
+            user.role = github_user_data["role"]
 
     db.commit()
     db.refresh(user)
