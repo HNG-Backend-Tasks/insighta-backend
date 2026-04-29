@@ -10,7 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from ..config import settings
-from ..models import RefreshToken, Role, User
+from ..models import OAuthState, RefreshToken, Role, User
 from ..utils import utcnow
 
 ACCESS_TOKEN_EXPIRE_MINUTES = 3
@@ -19,7 +19,7 @@ REFRESH_TOKEN_EXPIRE_MINUTES = 5
 GITHUB_TOKEN_URL = "https://github.com/login/oauth/access_token"
 GITHUB_USER_URL = "https://api.github.com/user"
 
-pkce_store: dict[str, str] = {}
+PKCE_EXPIRE_MINUTES = 10
 
 TEST_USERS = {
     "test_code": {
@@ -107,12 +107,32 @@ def generate_state() -> str:
     return secrets.token_urlsafe(16)
 
 
-def store_pkce(state: str, verifier: str):
-    pkce_store[state] = verifier
+def store_pkce(state: str, verifier: str, db: Session):
+    oauth_state = OAuthState(
+        state=state,
+        code_verifier=verifier,
+        expires_at=utcnow() + timedelta(minutes=PKCE_EXPIRE_MINUTES),
+    )
+    db.add(oauth_state)
+    db.commit()
 
 
-def pop_pkce_verifier(state: str) -> str | None:
-    return pkce_store.pop(state, None)
+def pop_pkce_verifier(state: str, db: Session) -> str | None:
+    row = db.execute(
+        select(OAuthState).where(
+            OAuthState.state == state,
+            OAuthState.used.is_(False),
+        )
+    ).scalar_one_or_none()
+    if not row:
+        return None
+    if row.expires_at < utcnow():
+        row.used = True
+        db.commit()
+        return None
+    row.used = True
+    db.commit()
+    return row.code_verifier
 
 
 async def exchange_github_code(
