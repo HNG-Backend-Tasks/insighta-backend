@@ -28,10 +28,10 @@ auth_router = APIRouter()
 
 
 @auth_router.get("/auth/github")
-def github_login():
+def github_login(db: Annotated[Session, Depends(get_db)]):
     state = generate_state()
     verifier, challenge = generate_pkce_pair()
-    store_pkce(state, verifier)
+    store_pkce(state, verifier, db)
 
     params = {
         "client_id": settings.GITHUB_CLIENT_ID_WEB,
@@ -66,7 +66,7 @@ async def github_callback(
     else:
         client_id = settings.GITHUB_CLIENT_ID_WEB
         client_secret = settings.GITHUB_CLIENT_SECRET_WEB
-        stored_verifier = pop_pkce_verifier(state)
+        stored_verifier = pop_pkce_verifier(state, db)
         if stored_verifier:
             code_verifier = stored_verifier
 
