@@ -81,7 +81,7 @@ async def rate_limit(request: Request, call_next):
     client_host = request.client.host if request.client else "testclient"
 
     if path.startswith("/auth/"):
-        key = f"{client_host}:{path}"
+        key = f"auth:{path}"
         limit = 10
     else:
         token = request.headers.get("Authorization", "") or request.cookies.get(
