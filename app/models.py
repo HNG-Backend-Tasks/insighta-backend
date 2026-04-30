@@ -80,6 +80,18 @@ class RefreshToken(Base):
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
 
 
+class OAuthState(Base):
+    __tablename__ = "oauth_states"
+
+    id: Mapped[str] = mapped_column(
+        default=lambda: str(uuid6.uuid7()), primary_key=True
+    )
+    state: Mapped[str] = mapped_column(String, unique=True, index=True)
+    code_verifier: Mapped[str] = mapped_column(String)
+    used: Mapped[bool] = mapped_column(default=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
 class ProfileResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
