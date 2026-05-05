@@ -98,7 +98,7 @@ def logout(payload: RefreshRequest, db: Annotated[Session, Depends(get_db)]):
     if not payload.refresh_token:
         raise HTTPException(status_code=400, detail="Missing refresh_token")
     token = get_refresh_token(payload.refresh_token, db)
-    if token:   
+    if token:
         token.used_at = utcnow()
         db.commit()
     return {"status": "success"}

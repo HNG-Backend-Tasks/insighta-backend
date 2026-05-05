@@ -2,20 +2,31 @@ import math
 from typing import Annotated, Literal
 
 import httpx
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import (
+    APIRouter,
+    Depends,
+    HTTPException,
+    Query,
+    Request,
+    Response,
+    UploadFile,
+)
+from fastapi.concurrency import run_in_threadpool
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
 from .auth.dependencies import get_current_user, require_admin
 from .database import get_db
-from .models import AgeGroup, Gender, ProfileListItem, ProfileResponse
+from .models import AgeGroup, Gender
 from .parser import parse_query
+from .schemas import ProfileListItem, ProfileResponse
 from .service import (
     create_profile,
     delete_profile,
     enrich_profile_data,
     get_profile,
     get_profiles,
+    process_csv,
 )
 from .utils import utcnow
 
@@ -167,6 +178,15 @@ def export_profiles(
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@admin_router.post("/api/profiles/import")
+async def import_profiles(file: UploadFile, db: Annotated[Session, Depends(get_db)]):
+    if not file.filename.endswith(".csv"):
+        raise HTTPException(status_code=400, detail="Only CSV files are allowed")
+
+    summary = await run_in_threadpool(process_csv, file, db)
+    return {"status": "completed", "summary": summary}
 
 
 @read_router.get("/api/profiles/{id}")

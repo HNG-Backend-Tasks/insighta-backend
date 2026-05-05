@@ -2,8 +2,7 @@ from datetime import UTC, datetime
 from enum import StrEnum
 
 import uuid6
-from pydantic import BaseModel, ConfigDict
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String
+from sqlalchemy import DateTime, Float, ForeignKey, Index, Integer, String
 from sqlalchemy import Enum as SQLEnum
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -44,6 +43,12 @@ class Profiles(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now(UTC)
     )
+
+
+Index("ix_profiles_gender", Profiles.gender)
+Index("ix_profiles_country_id", Profiles.country_id)
+Index("ix_profiles_age_group", Profiles.age_group)
+Index("ix_profiles_age", Profiles.age)
 
 
 class User(Base):
@@ -90,33 +95,3 @@ class OAuthState(Base):
     code_verifier: Mapped[str] = mapped_column(String)
     used: Mapped[bool] = mapped_column(default=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
-
-
-class ProfileResponse(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: str
-    name: str
-    gender: str
-    gender_probability: float
-    age: int
-    age_group: AgeGroup
-    country_id: str
-    country_name: str
-    country_probability: float
-    created_at: datetime
-
-
-class ProfileListItem(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: str
-    name: str
-    gender: str
-    gender_probability: float
-    age: int
-    age_group: AgeGroup
-    country_id: str
-    country_name: str
-    country_probability: float
-    created_at: datetime
