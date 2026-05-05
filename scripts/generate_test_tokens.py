@@ -33,7 +33,9 @@ else:
     db.refresh(admin)
 
 # Get or create analyst user
-analyst = db.execute(select(User).where(User.github_id == "1000002")).scalar_one_or_none()
+analyst = db.execute(
+    select(User).where(User.github_id == "1000002")
+).scalar_one_or_none()
 if not analyst:
     analyst = User(
         github_id="1000002",

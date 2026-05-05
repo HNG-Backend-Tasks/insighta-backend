@@ -26,9 +26,23 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
+
+
+@app.get("/debug/stats")
+def stats():
+    from .cache import _cache
+    from .service import db_query_count
+
+    return {
+        "db_queries": db_query_count,
+        "cache_size": _cache.maxsize,
+        "cache_current_size": len(_cache),
+    }
+
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
